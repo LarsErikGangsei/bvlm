@@ -4,7 +4,12 @@
 \alias{bvlm_excampledata}
 \title{Function for generating a data excample used in bvlm.}
 \usage{
-bvlm_excampledata()
+bvlm_excampledata(seed, rhoErr)
+}
+\arguments{
+\item{seed:}{Used to control "set.seed".}
+
+\item{rhoErr:}{korrelation in error covariance matrix}
 }
 \value{
 A list bvlm_excample with three elements:

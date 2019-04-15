@@ -1,4 +1,6 @@
 #' Function for generating a data excample used in bvlm.
+#' @param seed: Used to control "set.seed".
+#' @param rhoErr: korrelation in error covariance matrix
 
 #' @return A list bvlm_excample with three elements:
 #' @field data: A data frame containing the elements Y(100 x 2), with 85 missing
@@ -14,26 +16,34 @@
 #'  with Bivariate Response Variable Containing Missing Data.
 #'  Strategies to Increase Prediction Precision.
 #' @export
-bvlm_excampledata <- function()
+bvlm_excampledata <- function(seed,rhoErr)
 {
+  set.seed(seed)
+  seeds <- sample(1:100,10)
 
-  set.seed(5)
+  set.seed(seeds[1])
   bvlm_excample <- list(data=NULL,data_test=NULL,Parameters=NULL)
   bvlm_excample$data <- data.frame(Y = I(matrix(0,100,2)),
                      x1 = rnorm(100,2,1),
                      x2 = rgamma(100,3,1),
                      f1 = as.factor(sample(1:3,100,replace=TRUE)))
 
-  set.seed(14)
+
+  set.seed(seeds[2])
   bvlm_excample$data_test <- data.frame(Y = I(matrix(0,100,2)),
                                    x1 = rnorm(100,2,1),
                                    x2 = rgamma(100,3,1),
                                    f1 = as.factor(sample(1:3,100,replace=TRUE)))
 
-  set.seed(7)
+  set.seed(seeds[3])
   bvlm_excample$Parameters$Beta <- matrix(rnorm(10),5,2)%*%matrix(c(1,0.5,0.5,1),2,2)
   colnames(bvlm_excample$Parameters$Beta) <- c('Beta1True','Beta2True')
-  Sigma_sq <- matrix(c(4*sqrt(2),1/sqrt(2),1/sqrt(2),2*sqrt(2)),2,2)/sqrt(5)
+
+  a1 <- sqrt((1+sqrt(1-rhoErr^2))/2)
+  a12 <- rhoErr/(2*a1)
+
+
+  Sigma_sq <- matrix(c(a1,a12,a12,a1),2,2)
   Sigma <- Sigma_sq%*%Sigma_sq
   bvlm_excample$Parameters$Lambda <- matrix(c(1/Sigma[1,1],
                                               -Sigma[1,2]/Sigma[1,1],
@@ -41,18 +51,21 @@ bvlm_excampledata <- function()
                                               Sigma[1,1]/det(Sigma)),2,2)
   bvlm_excample$Parameters$Sigma <- Sigma
 
-  set.seed(12)
+  set.seed(seeds[4])
   E <- matrix(rnorm(200),100,2)%*%Sigma_sq
   bvlm_excample$data$Y <- I(model.matrix(lm(Y~x1+x2+f1,data =
                 bvlm_excample$data))%*%bvlm_excample$Parameters$Beta + E)
 
-  set.seed(7)
+  set.seed(seeds[5])
   E <- matrix(rnorm(200),100,2)%*%Sigma_sq
   bvlm_excample$data_test$Y <- I(model.matrix(lm(Y~x1+x2+f1,data =
                   bvlm_excample$data_test))%*%bvlm_excample$Parameters$Beta + E)
 
 
   bvlm_excample$data$Y[21:100,2] <- NA
+
+  colnames(bvlm_excample$data$Y) <- c('y1','y2')
+  colnames(bvlm_excample$data_test$Y) <- c('y1','y2')
 
  return(bvlm_excample)
 }

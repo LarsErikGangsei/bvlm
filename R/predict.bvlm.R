@@ -40,7 +40,7 @@ predict_bvlm <- function(Obj,newdata = NULL,ficpredict=FALSE)
     pred_form <- Obj$formula
   }
 
-    XXp <- model.matrix(pred_form,data = newdata)
+    XXp <- model.matrix(pred_form,contrasts = Obj$contrasts,data = newdata)
 
   fitted <- XXp%*%Obj$coefficients$Beta
 

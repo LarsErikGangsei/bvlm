@@ -21,6 +21,8 @@
 #' zeta1: a scalar > 1.
 #' zeta2: a scalar > 2.(Optional, equal to zeta_1 +1 as default)
 #' Bet0: a p x 2 matrix of predictor variables
+#' @param contrasts an optional list. Shoud be set as "contr.sum" for factor variabels
+#' if Empirical Bayes is used. See the contrasts.arg of model.matrix.default
 
 #' @return an object of class "bvlm". The generic accessor functions
 #' coefficients, fitted.values predict and residuals extract various
@@ -29,6 +31,7 @@
 #' An object of class "bvlm" is a list containing at least the following components:
 #'
 #' @field formula: the formula used in the function
+#' @field contrasts: the contrast used in the function
 #' @field method: 'ML', 'Bayes', the method used for analysis
 #' @field coefficients: a named list of coefficient estimates
 #' @field residuals: the residuals, that is response minus fitted values.
@@ -49,7 +52,7 @@
 #'  Strategies to Increase Prediction Precision.
 #' @examples
 #' # Simulate data
-#' bvlm_excample <- bvlm_excampledata()
+#' bvlm_excample <- bvlm_excampledata(6,0.5)
 #'
 #' # Fit ML model
 #' bvlmObj.ML <- bvlm(formula = 'Y ~ x1 + x2 + f1',
@@ -67,26 +70,37 @@
 #' points(density(bvlmPrediction.TRUE[,2]-bvlmPrediction.FIC$fitted[,2]),col='blue',type = 'l')
 #' points(density(bvlmPrediction.TRUE[,2]-bvlmPrediction.FIC$ficfitted2[,3]),col='green',type = 'l')
 #'
-#' # RMSEP
+#' # RMSEP predicted vs. true prdiction
 #' rmsep <- c(sqrt(mean((bvlmPrediction.TRUE[,2]-bvlmPrediction.FIC$ficfitted2[,1])^2)),
 #' sqrt(mean((bvlmPrediction.TRUE[,2]-bvlmPrediction.FIC$fitted[,2])^2)),
-#' sqrt(mean((bvlmPrediction.TRUE[,2]-bvlmPrediction.FIC$ficfitted2[,3])^2)))
+#' sqrt(mean((bvlmPrediction.TRUE[,2]-bvlmPrediction.ML$fitted[,2])^2)))
 #' names(rmsep) <- c('Narrow','FIC','ML')
 #' print(rmsep)
 #'
 #' # Fit Empirical Bayes model
-#' bvlmObj.EB <- bvlm(formula = 'Y ~ x1 + x2 + f1',data=bvlm_excample$data,method='Bayes')# Warnings uncentered data
+#' bvlmObj.EB <- bvlm(formula = 'Y ~ x1 + x2 + f1',data=bvlm_excample$data,
+#' method='Bayes')# Warnings uncentered data and not defined contrast
 #' bvlm_excample$data$Y <- scale(bvlm_excample$data$Y,center = TRUE,scale = FALSE)
 #' bvlm_excample$data$x1 <- scale(bvlm_excample$data$x1,center = TRUE,scale = TRUE)
 #' bvlm_excample$data$x2 <- scale(bvlm_excample$data$x2,center = TRUE,scale = TRUE)
-#' bvlm_excample$data$x1 <- (bvlm_excample$data$x1 - attributes(bvlm_excample$data$x1)$`scaled:center`)/attributes(bvlm_excample$data$x1)$`scaled:scale`
-#' bvlm_excample$data$x2 <- (bvlm_excample$data$x2 - attributes(bvlm_excample$data$x2)$`scaled:center`)/attributes(bvlm_excample$data$x2)$`scaled:scale`
-#' bvlmObj.EB <- bvlm(formula = 'Y ~ x1 + x2 + f1',data=bvlm_excample$data,method='Bayes')# No warnings
+#' bvlm_excample$data_test$x1 <- (bvlm_excample$data_test$x1 - attributes(bvlm_excample$data$x1)$`scaled:center`)/attributes(bvlm_excample$data$x1)$`scaled:scale`
+#' bvlm_excample$data_test$x2 <- (bvlm_excample$data_test$x2 - attributes(bvlm_excample$data$x2)$`scaled:center`)/attributes(bvlm_excample$data$x2)$`scaled:scale`
+#' bvlmObj.EB <- bvlm(formula = 'Y ~ x1 + x2 + f1',data=bvlm_excample$data,
+#' method='Bayes',contrasts = list(f1 = 'contr.sum'))# No warnings
 #' bvlmObj.EB$coefficients$Beta[1,] <- bvlmObj.EB$coefficients$Beta[1,] + attributes(bvlm_excample$data$Y)$`scaled:center`
-
+#'
+#' # RMSEP predicted vs. true observation
+#' bvlmPrediction.EB <- predict_bvlm(bvlmObj.EB,newdata = bvlm_excample$data_test,ficpredict=FALSE)# Prediction on new data, using EB estimates
+#' rmsep <- c(sqrt(mean((bvlm_excample$data_test$Y[,2]-bvlmPrediction.TRUE[,2])^2)),
+#' sqrt(mean((bvlm_excample$data_test$Y[,2]-bvlmPrediction.FIC$ficfitted2[,1])^2)),
+#' sqrt(mean((bvlm_excample$data_test$Y[,2]-bvlmPrediction.FIC$fitted[,2])^2)),
+#' sqrt(mean((bvlm_excample$data_test$Y[,2]-bvlmPrediction.FIC$ficfitted2[,3])^2)),
+#' sqrt(mean((bvlm_excample$data_test$Y[,2]-bvlmPrediction.EB$fitted[,2])^2)))
+#' names(rmsep) <- c('True','Narrow','FIC','ML','EB')
+#' print(rmsep)
 
 #' @export
-bvlm <- function(formula,data,method = 'ML',hyper = NULL){
+bvlm <- function(formula,data,method = 'ML',hyper = NULL,contrasts=NULL){
   ## Analysis/ calculations that has to be done for all methods --------- ##
 
   if(class(formula)!='formula'){formula <- as.formula(formula)}
@@ -113,6 +127,11 @@ bvlm <- function(formula,data,method = 'ML',hyper = NULL){
         if (mean(data[,ii])>(10^(-10)))
         {
           warning('The Empirical Bayes strategy is based on centered and scaled (predictors) data')
+        }
+      }else{
+        if (is.null(contrasts))
+        {
+          warning('The Empirical Bayes strategy is based on centered data and contrasts for factor variables should be set to "contr.sum"')
         }
       }
     }
@@ -248,6 +267,7 @@ bvlm <- function(formula,data,method = 'ML',hyper = NULL){
 
   ## Return result  ----------------------------------------------------- ##
   res <- list(formula = formula,
+              contrasts=contrasts,
               method = method,
               model = model,
               coefficients = list(
