@@ -100,7 +100,8 @@
 #' print(rmsep)
 
 #' @export
-bvlm <- function(formula,data,method = 'ML',hyper = NULL,contrasts=NULL){
+bvlm <- function(formula,data,method = 'ML',hyper = NULL,contrasts=NULL)
+  {
   ## Analysis/ calculations that has to be done for all methods --------- ##
 
   if(class(formula)!='formula'){formula <- as.formula(formula)}
@@ -137,9 +138,9 @@ bvlm <- function(formula,data,method = 'ML',hyper = NULL,contrasts=NULL){
     }
   }
 
-  Mod1 <- lm(update.formula(formula,yy1~.),data = data)
-  Mod22 <- lm(update.formula(formula,yy2~.),data = data[ind_n2,])
-  Mod21 <- lm(update.formula(formula,yy1~.),data = data[ind_n2,])
+  Mod1 <- lm(update.formula(formula,yy1~.),data = data,contrasts=contrasts)
+  Mod22 <- lm(update.formula(formula,yy2~.),data = data[ind_n2,],contrasts=contrasts)
+  Mod21 <- lm(update.formula(formula,yy1~.),data = data[ind_n2,],contrasts=contrasts)
 
   XX1 <- model.matrix(Mod1)
   XX2 <- XX1[ind_n2,]
@@ -180,16 +181,62 @@ bvlm <- function(formula,data,method = 'ML',hyper = NULL,contrasts=NULL){
   }else{
     # Hyper parameters in Empirical Bayes
     if(is.null(hyper))
-    {aagg1 <- nlm(evopt,c(1,1),QQ=as.matrix(qq3),Beta=as.matrix(coef(Mod1)),
-                  XtX=XtX1,nn=nn1)
-    aagg2 <- nlm(evopt,c(1,1),QQ=QQ,Beta=
-                   as.matrix(cbind(coef(Mod21),coef(Mod22))),XtX=XtX2,nn=nn2)
+    {
+      aagg1 <- list(code=5)
+      startpos <- c(1,1)
+      startiter <- 100
+      count <- 0
+      options(warn=-1)
+      while(aagg1$code>2)
+      {
+      aagg1 <- nlm(evopt,startpos,QQ=as.matrix(qq3),Beta=as.matrix(coef(Mod1)),
+                  XtX=XtX1,nn=nn1,iterlim = startiter)
+      if(aagg1$code==5){startpos <- startpos*2}
+      if(aagg1$code==3){startpos <- startpos/2}
+      if(aagg1$code==4){startiter <- startiter*2}
+      count <- count + 1
+      if(count>5){break}
+      }
 
+      aagg2 <- list(code=5)
+      startpos <- c(1,1)
+      startiter <- 100
+      count <- 0
+      while(aagg2$code>2)
+      {
+        aagg2 <- nlm(evopt,startpos,QQ=QQ,Beta=
+                       as.matrix(cbind(coef(Mod21),coef(Mod22))),XtX=XtX2,nn=nn2,
+                     iterlim = startiter)
+        if(aagg2$code==5){startpos <- startpos*2}
+        if(aagg2$code==3){startpos <- startpos/2}
+        if(aagg2$code==4){startiter <- startiter*2}
+        count <- count + 1
+        if(count>5){break()}
+      }
+      options(warn=0)
+
+    if(aagg1$code==1)
+    {
     alpha1 <- aagg1$estimate[1]
-    alpha2 <- aagg2$estimate[1]
     gamma1 <- aagg1$estimate[2]
-    gamma2 <- aagg2$estimate[2]
+    }else{
+      alpha1 <- 1
+      gamma1 <- 1
+      warning('Optimalization of model evidence failed, alpa1 and gamma1 set to 1')
+    }
 
+    if(aagg2$code==1)
+    {
+    alpha2 <- aagg2$estimate[1]
+    gamma2 <- aagg2$estimate[2]
+    }else{
+      alpha2 <- 1
+      gamma2 <- 1
+      warning('Optimalization of model evidence failed, alpa2 and gamma2 set to 1')
+    }
+
+  #  print(aagg1$code)
+#  print(c(alpha1,gamma1,alpha2,gamma2))
     hyper <- list(Psi1 = (alpha1/nn1)*XtX1,
                   Psi2 = (alpha2/nn2)*XtX2,
                   Phi = diag(rep(gamma2,2)),

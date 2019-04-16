@@ -15,6 +15,7 @@
 #' @references Gangsei, Almøy and Sæbø (2019). Linear Regression
 #'  with Bivariate Response Variable Containing Missing Data.
 #'  Strategies to Increase Prediction Precision.
+#' @import mvtnorm
 #' @export
 bvlm_excampledata <- function(seed,rhoErr)
 {
@@ -39,8 +40,9 @@ bvlm_excampledata <- function(seed,rhoErr)
   bvlm_excample$Parameters$Beta <- matrix(rnorm(10),5,2)%*%matrix(c(1,0.5,0.5,1),2,2)
   colnames(bvlm_excample$Parameters$Beta) <- c('Beta1True','Beta2True')
 
-  a1 <- sqrt((1+sqrt(1-rhoErr^2))/2)
-  a12 <- rhoErr/(2*a1)
+
+  a12 <- ifelse(rhoErr>0,1,-1)*sqrt((1-sqrt(1-rhoErr^2))/2)
+  a1 <- sqrt(1-a12^2)
 
 
   Sigma_sq <- matrix(c(a1,a12,a12,a1),2,2)
@@ -50,14 +52,18 @@ bvlm_excampledata <- function(seed,rhoErr)
                                               -Sigma[1,2]/Sigma[1,1],
                                               Sigma[1,1]/det(Sigma)),2,2)
   bvlm_excample$Parameters$Sigma <- Sigma
+  bvlm_excample$Parameters$Sigma_sq <- Sigma_sq
 
   set.seed(seeds[4])
-  E <- matrix(rnorm(200),100,2)%*%Sigma_sq
+  #E <- matrix(rnorm(200),100,2)%*%Sigma_sq
+  E <- rmvnorm(100,c(0,0),Sigma)
+
   bvlm_excample$data$Y <- I(model.matrix(lm(Y~x1+x2+f1,data =
                 bvlm_excample$data))%*%bvlm_excample$Parameters$Beta + E)
 
-  set.seed(seeds[5])
-  E <- matrix(rnorm(200),100,2)%*%Sigma_sq
+  set.seed(seeds[9])
+  #E <- matrix(rnorm(200),100,2)%*%Sigma_sq
+  E <- rmvnorm(100,c(0,0),Sigma)
   bvlm_excample$data_test$Y <- I(model.matrix(lm(Y~x1+x2+f1,data =
                   bvlm_excample$data_test))%*%bvlm_excample$Parameters$Beta + E)
 

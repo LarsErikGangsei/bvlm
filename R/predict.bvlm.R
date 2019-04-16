@@ -42,7 +42,10 @@ predict_bvlm <- function(Obj,newdata = NULL,ficpredict=FALSE)
 
     XXp <- model.matrix(pred_form,contrasts = Obj$contrasts,data = newdata)
 
+
   fitted <- XXp%*%Obj$coefficients$Beta
+
+  colnames(fitted) <- c('y1','y2')
 
   res <- list(fitted = fitted)
 
