@@ -195,7 +195,7 @@ bvlm <- function(formula,data,method = 'ML',hyper = NULL,contrasts=NULL)
       if(aagg1$code==3){startpos <- startpos/2}
       if(aagg1$code==4){startiter <- startiter*2}
       count <- count + 1
-      if(count>5){break}
+      if(count>20){break}
       }
 
       aagg2 <- list(code=5)
@@ -211,11 +211,11 @@ bvlm <- function(formula,data,method = 'ML',hyper = NULL,contrasts=NULL)
         if(aagg2$code==3){startpos <- startpos/2}
         if(aagg2$code==4){startiter <- startiter*2}
         count <- count + 1
-        if(count>5){break()}
+        if(count>20){break()}
       }
       options(warn=0)
 
-    if(aagg1$code==1)
+    if(aagg1$code<3)
     {
     alpha1 <- aagg1$estimate[1]
     gamma1 <- aagg1$estimate[2]
@@ -225,7 +225,7 @@ bvlm <- function(formula,data,method = 'ML',hyper = NULL,contrasts=NULL)
       warning('Optimalization of model evidence failed, alpa1 and gamma1 set to 1')
     }
 
-    if(aagg2$code==1)
+    if(aagg2$code<3)
     {
     alpha2 <- aagg2$estimate[1]
     gamma2 <- aagg2$estimate[2]
